@@ -39,6 +39,7 @@
 #include "serial_num.h"
 #include "settings.h"
 #include "silent.h"
+#include "savestate_ui.h"
 #include "pwrmgr.h"
 #include "rom_browser.h"
 #include "virtual_cart.h"
@@ -168,6 +169,12 @@ static void send_lines(spi_device_handle_t spi, int ypos, uint16_t *linedata)
     //send_line_finish, which will wait for the transfers to be done and check their status.
 }
 
+static bool QueueSavestate(uint8_t Op)
+{
+    FPGA_Tx_SaveState(Op);
+    return true;
+}
+
 static void register_update_callbacks(void)
 {
     Brightness_RegisterOnUpdateCb(FPGA_Tx_WriteBrightness);
@@ -180,6 +187,7 @@ static void register_update_callbacks(void)
     DPadCtl_RegisterOnUpdateCb(FPGA_Tx_SendSysCtl);
     LowBattIconCtl_RegisterOnUpdateCb(FPGA_Tx_SendSysCtl);
     Button_RegisterOnButtonPokeCb(FPGA_Tx_PokeButtons);
+    SavestateUI_RegisterAction(QueueSavestate);
     Style_RegisterOnUpdateCb(FPGA_Tx_WritePaletteStyle);
 }
 

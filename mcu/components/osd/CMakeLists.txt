@@ -20,6 +20,7 @@ idf_component_register(SRCS
                         "system/cart_backup_ui.c"
                         "system/pc_backup_mode.c"
                         "system/rom_browser_ui.c"
+                        "system/savestate_ui.c"
                     INCLUDE_DIRS
                         "."
                         "controls/"

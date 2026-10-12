@@ -73,7 +73,10 @@ module system_monitor(
     input               audio_snapshot_toggle_x,
     input               audio_snapshot_ready_x,
     input [79:0]        audio_snapshot_status_x,
-    input [79:0]        audio_snapshot_codec_x
+    input [79:0]        audio_snapshot_codec_x,
+
+    output reg          ss_save_toggle,
+    output reg          ss_load_toggle
 );
 
     wire    [6:0]   rx_address;
@@ -240,6 +243,8 @@ module system_monitor(
             system_control <= 16'd0;
             MCU_buttons    <= 9'd0;
             request_gpd   <= 1'b0;
+            ss_save_toggle <= 1'b0;
+            ss_load_toggle <= 1'b0;
         end else begin
             request_buttons              <= 1'b0;
             request_version              <= 1'b0;
@@ -270,6 +275,12 @@ module system_monitor(
                 end
                 if(rx_address == 7'd6) begin
                     request_version <= 1'b1;
+                end
+                if(rx_address == 7'd7) begin
+                    if (rx_data[7:0] == 8'd1)
+                        ss_save_toggle <= ~ss_save_toggle;
+                    if (rx_data[7:0] == 8'd2)
+                        ss_load_toggle <= ~ss_load_toggle;
                 end
                 if(rx_address == 7'd5) begin
                     if (blockBrightnessReceive == 2'd0) begin

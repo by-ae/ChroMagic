@@ -14,6 +14,7 @@ void FPGA_Tx_Pause(void);
 void FPGA_Tx_SendAll(void);
 void FPGA_Tx_WriteBrightness(void);
 void FPGA_Tx_SendSysCtl(void);
+void FPGA_Tx_SaveState(uint8_t Op);
 void FPGA_Tx_PokeButtons(void);
 void FPGA_Tx_WritePaletteStyle(void);
 esp_err_t FPGA_Tx_CartRequest(const uint8_t Request[8]);

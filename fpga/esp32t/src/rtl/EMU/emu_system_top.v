@@ -7,6 +7,8 @@ module emu_system_top
     input               xclk,
     input               reset_n,
     input               xreset,
+    input               ss_save_toggle,
+    input               ss_load_toggle,
     input               POWER_GOOD,
     input               maintenance_reset_h,
     input               virtual_attempt_reset_h,
@@ -342,6 +344,74 @@ module emu_system_top
     end
     // synthesis translate_on
 
+    reg [1:0] ss_save_sync;
+    reg [1:0] ss_load_sync;
+    reg ss_save_level;
+    reg ss_load_level;
+    always @(posedge hclk) begin
+        if (!reset_n) begin
+            ss_save_sync  <= 2'd0;
+            ss_load_sync  <= 2'd0;
+            ss_save_level <= 1'b0;
+            ss_load_level <= 1'b0;
+        end else begin
+            ss_save_sync  <= {ss_save_sync[0], ss_save_toggle};
+            ss_load_sync  <= {ss_load_sync[0], ss_load_toggle};
+            ss_save_level <= ss_save_sync[1];
+            ss_load_level <= ss_load_sync[1];
+        end
+    end
+    wire ss_save_pulse = ss_save_sync[1] ^ ss_save_level;
+    wire ss_load_pulse = ss_load_sync[1] ^ ss_load_level;
+
+    wire        vc_xrequest;
+    wire        vc_xread;
+    wire [22:0] vc_xaddress;
+    wire [15:0] vc_xwritedata;
+    wire [10:0] vc_xlength;
+    wire        ss_xrequest;
+    wire        ss_xread;
+    wire [22:0] ss_xaddress;
+    wire [15:0] ss_xwritedata;
+    wire [10:0] ss_xlength;
+    wire        ss_xactive;
+
+    assign virtual_xrequest   = ss_xactive ? ss_xrequest   : vc_xrequest;
+    assign virtual_xread      = ss_xactive ? ss_xread      : vc_xread;
+    assign virtual_xaddress   = ss_xactive ? ss_xaddress   : vc_xaddress;
+    assign virtual_xwritedata = ss_xactive ? ss_xwritedata : vc_xwritedata;
+    assign virtual_xlength    = ss_xactive ? ss_xlength    : vc_xlength;
+
+    wire ss_xwrite_next = ss_xactive & virtual_xwrite_next;
+    wire ss_xdone       = ss_xactive & virtual_xdone;
+    wire ss_xread_valid = ss_xactive & virtual_xread_valid;
+    wire vc_xwrite_next = ~ss_xactive & virtual_xwrite_next;
+    wire vc_xdone       = ~ss_xactive & virtual_xdone;
+    wire vc_xread_valid = ~ss_xactive & virtual_xread_valid;
+
+    savestate_psram u_savestate_psram (
+        .hclk        (hclk),
+        .hreset      (~reset_n),
+        .ena         (SAVE_out_ena),
+        .rnw         (SAVE_out_rnw),
+        .adr         (SAVE_out_Adr),
+        .din         (SAVE_out_Din),
+        .dout        (SAVE_out_Dout),
+        .done        (SAVE_out_done),
+        .xclk        (xclk),
+        .xreset      (xreset),
+        .xrequest    (ss_xrequest),
+        .xread       (ss_xread),
+        .xaddress    (ss_xaddress),
+        .xwritedata  (ss_xwritedata),
+        .xlength     (ss_xlength),
+        .xwrite_next (ss_xwrite_next),
+        .xdone       (ss_xdone),
+        .xread_valid (ss_xread_valid),
+        .xreaddata   (virtual_xreaddata),
+        .xactive     (ss_xactive)
+    );
+
     wire [15:0] snd_l;  
     wire [15:0] snd_r;  
 
@@ -385,14 +455,14 @@ module emu_system_top
         .cart_wait(virtual_cart_wait),
         .initialized(virtual_initialized),
         .save_dirty(virtual_save_dirty),
-        .xrequest(virtual_xrequest),
-        .xread(virtual_xread),
-        .xaddress(virtual_xaddress),
-        .xwritedata(virtual_xwritedata),
-        .xlength(virtual_xlength),
-        .xwrite_next(virtual_xwrite_next),
-        .xdone(virtual_xdone),
-        .xread_valid(virtual_xread_valid),
+        .xrequest(vc_xrequest),
+        .xread(vc_xread),
+        .xaddress(vc_xaddress),
+        .xwritedata(vc_xwritedata),
+        .xlength(vc_xlength),
+        .xwrite_next(vc_xwrite_next),
+        .xdone(vc_xdone),
+        .xread_valid(vc_xread_valid),
         .xreaddata(virtual_xreaddata),
         .xsnapshot_request_toggle(virtual_snapshot_request_toggle),
         .xsnapshot_block(virtual_snapshot_block),
@@ -507,8 +577,8 @@ module emu_system_top
         // savestates
         .increaseSSHeaderCount(1'd0),
         .cart_ram_size(8'd0),
-        .save_state(1'd0),
-        .load_state(ss_load),
+        .save_state(ss_save_pulse),
+        .load_state(ss_load | ss_load_pulse),
         .savestate_number(2'd0),
         .sleep_savestate(sleep_savestate),
 
@@ -594,8 +664,6 @@ module emu_system_top
    assign ch1_req       = SAVE_out_ena;
    assign ch1_rnw       = SAVE_out_rnw;
    assign ch1_be        = 8'hFF; // only required for increaseSSHeaderCount
-   assign SAVE_out_Dout = ch1_dout;
-   assign SAVE_out_done = ch1_ready;
    
    ddrram_model iddrram_model
    (

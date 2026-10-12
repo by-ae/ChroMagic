@@ -23,6 +23,7 @@
 #include "system/cart_backup_ui.h"
 #include "system/pc_backup_mode.h"
 #include "system/rom_browser_ui.h"
+#include "system/savestate_ui.h"
 #include "osd.h"
 #include "osd_shared.h"
 #include "esp_log.h"
@@ -443,6 +444,36 @@ static void CreateMenuSystem(lv_obj_t *const pScreen)
     {
         ESP_LOGE(TAG, "%s tab item init failed %d",
                  PCBackupMode.Widget.Name, eResult);
+        return;
+    }
+
+    static TabItem_t SaveState = {
+        .Widget = {
+            .Name = "SAVE STATE",
+            .fnDraw = SavestateSave_Draw,
+            .fnOnButton = SavestateSave_OnButton,
+            .fnOnTransition = SavestateSave_OnTransition,
+        },
+    };
+
+    if ((eResult = Tab_AddItem(pList, &SaveState, pScreen)) != kOSD_Result_Ok)
+    {
+        ESP_LOGE(TAG, "%s tab item init failed %d", SaveState.Widget.Name, eResult);
+        return;
+    }
+
+    static TabItem_t LoadState = {
+        .Widget = {
+            .Name = "LOAD STATE",
+            .fnDraw = SavestateLoad_Draw,
+            .fnOnButton = SavestateLoad_OnButton,
+            .fnOnTransition = SavestateLoad_OnTransition,
+        },
+    };
+
+    if ((eResult = Tab_AddItem(pList, &LoadState, pScreen)) != kOSD_Result_Ok)
+    {
+        ESP_LOGE(TAG, "%s tab item init failed %d", LoadState.Widget.Name, eResult);
         return;
     }
 

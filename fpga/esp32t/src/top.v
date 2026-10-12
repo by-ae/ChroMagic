@@ -488,6 +488,8 @@ module top #(parameter ISSIMU=0)
     wire        virtual_xdone;
     wire        virtual_xread_valid;
     wire [15:0] virtual_xreaddata;
+    wire        ss_save_toggle;
+    wire        ss_load_toggle;
     wire        virtual_snapshot_ready_x;
     wire [15:0] virtual_snapshot_ready_sequence_x;
     wire        qspi_write_busy_x;
@@ -1145,6 +1147,9 @@ module top #(parameter ISSIMU=0)
         .CART_RST(CART_RST),
         .CART_WR(core_cart_write_n),
 
+        .ss_save_toggle(ss_save_toggle),
+        .ss_load_toggle(ss_load_toggle),
+
         .virtual_enable(virtual_enable_h),
         .virtual_mapper_select(virtual_mapper_select_h),
         .virtual_mbc1m(virtual_mbc1m_h),
@@ -1450,7 +1455,9 @@ module top #(parameter ISSIMU=0)
         .audio_snapshot_toggle_x(audio_boot_snapshot_toggle),
         .audio_snapshot_ready_x(audio_boot_snapshot_ready),
         .audio_snapshot_status_x(audio_boot_status),
-        .audio_snapshot_codec_x(audio_boot_codec)
+        .audio_snapshot_codec_x(audio_boot_codec),
+        .ss_save_toggle(ss_save_toggle),
+        .ss_load_toggle(ss_load_toggle)
     );
 
     UART2

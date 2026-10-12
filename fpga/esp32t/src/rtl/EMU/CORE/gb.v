@@ -1203,8 +1203,11 @@ assign SaveStateExt_wren = SaveStateBus_wren;
 assign SaveStateExt_rst  = SaveStateBus_rst;
 assign SaveStateExt_load = savestate_loaded;
 
-assign Savestate_CRAMAddr      = Savestate_RAMAddr;    
-assign Savestate_CRAMRWrEn     = Savestate_RAMRWrEn[4];
+assign Savestate_CRAMAddr      = Savestate_RAMAddr;
+// Cart RAM readback is tied to zero. Applying the savestate's cart-RAM
+// region would write those zeros over the game's save, so the write
+// stays off. WRAM, VRAM, OAM, and HRAM still restore.
+assign Savestate_CRAMRWrEn     = 1'b0;
 assign Savestate_CRAMWriteData = Savestate_RAMWriteData;
 
 wire [63:0] SaveStateBus_Dout  = SaveStateBus_wired_or[0] | SaveStateBus_wired_or[1] | SaveStateBus_wired_or[2] | SaveStateBus_wired_or[3] |
@@ -1240,9 +1243,8 @@ gb_savestates gb_savestates (
    //.saving_savestate       (saving_savestate),
    .sleep_savestate        (sleep_savestates),
    .clock_ena_in           (ce_2x),
-   
-// synthesis translate_off
-   .Save_RAMAddr           (Savestate_RAMAddr),   
+
+   .Save_RAMAddr           (Savestate_RAMAddr),
    .Save_RAMWrEn           (Savestate_RAMRWrEn),
    .Save_RAMWriteData      (Savestate_RAMWriteData),
    .Save_RAMReadData_WRAM  (Savestate_RAMReadData_WRAM),
@@ -1250,8 +1252,7 @@ gb_savestates gb_savestates (
    .Save_RAMReadData_ORAM  (Savestate_RAMReadData_ORAM),
    .Save_RAMReadData_ZRAM  (Savestate_RAMReadData_ZRAM),
    .Save_RAMReadData_CRAM  (Savestate_CRAMReadData),
-// synthesis translate_on
-            
+
    .bus_out_Din            (SAVE_out_Din),   
    .bus_out_Dout           (SAVE_out_Dout),  
    .bus_out_Adr            (SAVE_out_Adr),   

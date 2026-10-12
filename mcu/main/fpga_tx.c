@@ -34,6 +34,7 @@ enum {
     kFlag_PokeButton,
     kFlag_SetPaletteStyle,
     kFlag_RequestBGPD,
+    kFlag_SaveState,
     kNumFlags,
 };
 
@@ -45,6 +46,7 @@ typedef enum {
     kTxFlag_PokeButton       = (1 << kFlag_PokeButton),
     kTxFlag_SetPaletteStyle  = (1 << kFlag_SetPaletteStyle),
     kTxFlag_RequestBGPD      = (1 << kFlag_RequestBGPD),
+    kTxFlag_SaveState        = (1 << kFlag_SaveState),
     kTxFlag_AllFlags         = ((1 << kNumFlags) - 1),
 } TxFlags_t;
 
@@ -56,6 +58,7 @@ typedef enum {
     kTxCmd_SysCtrl          = 0x4,
     kTxCmd_BacklightCtl     = 0x5,
     kTxCmd_ReqFWVer         = 0x6,
+    kTxCmd_SaveState        = 0x7,
     kTxCmd_PokeButton       = 0x9,
     kTxCmd_BGPaletteCtl     = 0xB,
     kTxCmd_SpritePaletteCtl = 0xC,
@@ -68,6 +71,7 @@ typedef enum {
 
 // Declare a variable to hold the handle of the created event group.
 static EventGroupHandle_t xEventGroupHandle;
+static uint8_t SaveStateOp;
 
 // Declare a variable to hold the data associated with the created event group.
 static StaticEventGroup_t xCreatedEventGroup;
@@ -99,7 +103,7 @@ void FPGA_TxTask(void *arg)
 
         const EventBits_t EventBits = xEventGroupWaitBits(
             xEventGroupHandle,
-            (kTxFlag_WriteBrightness | kTxFlag_SetSysCtl | kTxFlag_RequestFWVer | kTxFlag_PokeButton | kTxFlag_SetPaletteStyle | kTxFlag_RequestBGPD),
+            (kTxFlag_WriteBrightness | kTxFlag_SetSysCtl | kTxFlag_RequestFWVer | kTxFlag_PokeButton | kTxFlag_SetPaletteStyle | kTxFlag_RequestBGPD | kTxFlag_SaveState),
             pdTRUE, // DO clear the flags to complete the request
             pdFALSE, // Any bit will do
             pdMS_TO_TICKS(100)
@@ -186,6 +190,17 @@ void FPGA_TxTask(void *arg)
             (void)uart_write_bytes(UART_NUM_1, TxBuffer, Size3);
         }
 
+        if ((EventBits & kTxFlag_SaveState) == kTxFlag_SaveState)
+        {
+            const uint8_t Op = SaveStateOp;
+            if ((Op == 1) || (Op == 2))
+            {
+                uint16_t Payload = Op;
+                const size_t Size = SetupTxBuffer(TxBuffer, kTxCmd_SaveState, sizeof(Payload), &Payload);
+                (void) uart_write_bytes(UART_NUM_1, TxBuffer, Size);
+            }
+        }
+
         memset(TxBuffer, 0x0, sizeof(TxBuffer));
     }
 
@@ -215,6 +230,17 @@ void FPGA_Tx_WriteBrightness(void)
 void FPGA_Tx_SendSysCtl(void)
 {
    (void) xEventGroupSetBits(xEventGroupHandle, kTxFlag_SetSysCtl);
+}
+
+void FPGA_Tx_SaveState(uint8_t Op)
+{
+    if ((Op != 1) && (Op != 2))
+    {
+        return;
+    }
+
+    SaveStateOp = Op;
+    (void) xEventGroupSetBits(xEventGroupHandle, kTxFlag_SaveState);
 }
 
 void FPGA_Tx_PokeButtons(void)
@@ -303,7 +329,8 @@ static size_t SetupTxBuffer(uint8_t *const pBuffer, TxIDs_t eID, uint8_t Len, vo
 
     const bool UseV1 = FPGA_IsProtoV1() &&
                        eID != kTxCmd_CartMaintenance &&
-                       eID != kTxCmd_CartStreamAck;
+                       eID != kTxCmd_CartStreamAck &&
+                       eID != kTxCmd_SaveState;
     pBuffer[0] = (uint8_t)(UseV1 ? kSysMgmtConsts_HeaderV1Marker : kSysMgmtConsts_HeaderV2Marker);
     pBuffer[1] = (uint8_t)eID;
 
