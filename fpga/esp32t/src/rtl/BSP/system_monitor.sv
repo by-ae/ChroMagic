@@ -538,7 +538,7 @@ module system_monitor(
     reg [13:0] version = {
         1'd0,  // 1 bit reserved
         1'd0,  // 1 bit debug,
-        6'd38, // 6 bits minor version
+        6'd39, // 6 bits minor version
         6'd18  // 6 bits major version
     };
 
